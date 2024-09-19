@@ -1,0 +1,128 @@
+/* Container for the whole page split into two halves */
+.enter-data-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px; /* This creates a gap between the input and output containers */
+    margin: 0 20px; /* Adding some margin to the sides */
+    padding: 20px;
+    background-color: #dfdbd3;
+    border-radius: 8px;
+  }
+  
+  /* Form container on the left side */
+  .form-container {
+    flex: 1;
+    width: 45%; /* Adjust width as necessary */
+    padding: 20px;
+    background-color: #bb9440;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .output-section {
+    flex: 1;
+    width: 45%;
+    background-color: #f4f4f4;
+    padding: 20px;
+    border-radius: 8px;
+  }
+
+  /* Table styling */
+  table {
+    width: 100%;
+    margin-bottom: 5px;
+    border-collapse: collapse;
+    background-color: #f9f9f9; 
+    border-radius: 8px; 
+    overflow: hidden; 
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
+}
+  
+  th, td {
+    text-align: left;
+    padding: 8px;
+  }
+  
+  th {
+    background-color: #b0a693;
+    color: white;
+  }
+  
+  td input {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+  
+  /* Button group for add/remove row buttons */
+  .button-group {
+    display: flex;
+    justify-content: center;
+    gap: 0px;
+    margin-bottom: 5px;
+  }
+  
+  /* Add and Remove buttons */
+  .add-row-btn {
+    padding: 3px 10px;
+    background-color: #4caf4fdb;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  
+  .add-row-btn:hover {
+    background-color: #45a049;
+  }
+
+  /* Remove button */
+  .remove-row-btn {
+    padding: 3px 10px;
+    background-color: #af534cc5;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  
+  .remove-row-btn:hover {
+    background-color: #8d403bc5;
+  }
+  
+  /* Submit button */
+  .submit-btn {
+    display: block;
+    padding: 12px 24px;
+    margin: 10px;
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  
+  .submit-btn:hover {
+    background-color: #45a049;
+  }
+  
+  /* Output container on the right side */
+  .output-container {
+    width: 45%; /* Adjust width as necessary */
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    text-align: center;
+  }
+  
+  /* Centering h2 */
+  .output-container h2 {
+    text-align: center;
+  }
+  

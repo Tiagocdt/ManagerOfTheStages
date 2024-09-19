@@ -1,0 +1,147 @@
+/* Container for the whole page split into two halves */
+.page-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px; /* This creates a gap between the input and output containers */
+    margin: 0 20px; /* Adding some margin to the sides */
+    padding: 20px;
+    background-color: #dfdbd3;
+    border-radius: 8px;
+}
+
+/* Form container on the left side (used for forms on both pages) */
+.form-container {
+    flex: 1;
+    width: 45%; /* Adjust width as necessary */
+    padding: 20px;
+    background-color: #bb9440;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.form-section {
+    width: 45%;
+  }
+
+
+.form-group {
+    margin-bottom: 20px;
+  }
+
+/* Output section on the right side (for preview or results) */
+.output-container {
+    flex: 1;
+    width: 45%; /* Adjust width as necessary */
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.input-field {
+    width: 50%;
+    padding: 4px 10px;
+    margin-top: 5px;
+    border-radius: 8px;
+  }
+
+/* Table styling for both pages */
+table {
+    width: 100%;
+    margin-bottom: 5px;
+    border-collapse: collapse;
+    background-color: #f9f9f9; 
+    border-radius: 8px; 
+    overflow: hidden; 
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
+}
+
+th, td {
+    text-align: left;
+    padding: 8px;
+}
+
+th {
+    background-color: #b0a693;
+    color: white;
+}
+
+td input {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* Button group styling */
+.button-group {
+    display: flex;
+    justify-content: center;
+    gap: 0px;
+    margin-bottom: 5px;
+}
+
+/* Add and remove row buttons */
+.add-row-btn, .remove-row-btn {
+    padding: 3px 10px;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.add-row-btn {
+    background-color: #4caf50;
+}
+
+.add-row-btn:hover {
+    background-color: #45a049;
+}
+
+.remove-row-btn {
+    background-color: #af534c;
+}
+
+.remove-row-btn:hover {
+    background-color: #8d403b;
+}
+
+/* Submit button styling for both pages */
+.submit-btn {
+    display: block;
+    padding: 12px 24px;
+    margin: 10px;
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.submit-btn:hover {
+    background-color: #45a049;
+}
+
+/* Center the h2 in the output container */
+.output-container h2 {
+    text-align: center;
+}
+
+/* Input and output container spacing adjustments for time fields (e.g., start and end time fields) */
+.time-fields {
+    display: flex;
+    gap: 10px;
+}
+
+.time-fields input {
+    flex: 1;
+}
+
+button.selected {
+    background-color: #4caf50;
+    color: white;
+}

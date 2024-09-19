@@ -1,0 +1,75 @@
+.predict-stages-container {
+    display: flex;
+    justify-content: space-between;
+  }
+  
+  .form-section {
+    width: 45%;
+  }
+  
+  .output-section {
+    width: 45%;
+    background-color: #f4f4f4;
+    padding: 20px;
+    border-radius: 8px;
+  }
+  
+  .form-group {
+    margin-bottom: 20px;
+  }
+  
+  .input-field {
+    width: 100%;
+    padding: 8px;
+    margin-top: 5px;
+  }
+  
+  .small-field {
+    width: 45%;
+  }
+  
+  .added-item {
+    margin-right: 10px;
+  }
+  
+  .plus-btn, .remove-btn, .clear-btn, .submit-btn {
+    margin-top: 10px;
+    padding: 5px 15px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  
+  .plus-btn {
+    margin-left: 10px;
+  }
+  
+  .day-btn {
+    margin: 5px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    cursor: pointer;
+  }
+  
+  .day-btn.selected {
+    background-color: #4caf50;
+    color: white;
+  }
+
+button.selected {
+  background-color: #4caf50;
+  color: white;
+}
+
+button {
+  margin: 5px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #ddd;
+}
