@@ -6,8 +6,8 @@ url = "http://127.0.0.1:5000/predict"
 # Define your test data
 data = {
     "required_species": "Oryzias latipes",
-    "required_stages": [18, 20, 25, 30],
-    "available_temperatures": [24, 26, 28],
+    "required_stages": [10,25,30,40],
+    "available_temperatures": [26, 28],
     "start_datetime": "2024-09-17 10:00",
     "desired_time": "2024-09-20 10:00",
     "lab_days": [1, 2, 3, 4],

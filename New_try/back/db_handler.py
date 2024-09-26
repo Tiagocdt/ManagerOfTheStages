@@ -1,12 +1,14 @@
+# db_handler.py
+
 import sqlite3
 import numpy as np
 import pandas as pd
 from scipy.interpolate import Rbf
 
-# Connect to the SQLite database (you can reuse this connection in different functions)
+# Connect to the SQLite database
 def get_db_connection():
     conn = sqlite3.connect('medaka_development.db')
-    conn.row_factory = sqlite3.Row  # Makes rows behave like dictionaries (optional)
+    conn.row_factory = sqlite3.Row
     return conn
 
 # Add a new record to the database
@@ -25,23 +27,13 @@ def fetch_all_data():
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM development_times')
-    data = cursor.fetchall()  # Returns a list of rows
+    rows = cursor.fetchall()
     conn.close()
-    return data
-
-# Fetch specific data by species and temperature
-def fetch_by_species_and_temp(species, temperature):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM development_times WHERE species = ? AND temperature = ?', (species, temperature))
-    data = cursor.fetchall()
-    conn.close()
+    data = [dict(row) for row in rows]
     return data
 
 def prepare_data(data):
-    # This will store each entry as a dictionary in a list
     data_list = []
-
     for entry in data:
         temperature = float(entry['temperature'])
         stage = float(entry['stage'])
@@ -51,38 +43,45 @@ def prepare_data(data):
             'Stage': stage,
             'Development_Time': development_time
         })
-    
-    # Convert the list of dictionaries to a DataFrame
     data_df = pd.DataFrame(data_list)
-    
     points = data_df[['Temperature', 'Stage']].values
     values = data_df['Development_Time'].values
-    
     return points, values
 
-# Create an interpolated dataset   
-def create_interpolated_dataset(points, values, method='linear'):
-    # Define the range of temperatures and stages you need
-    temperatures = np.linspace(18, 32, 15)  # From 18 to 32 degrees, 15 points
-    stages = np.linspace(0, 40, 41)         # From stage 0 to 40, 41 points
-    
-    # Prepare mesh for temperatures and stages
+def create_interpolated_dataset(points, values, method='rbf', available_temperatures=None, max_stage=None):
+    # Include available temperatures in the grid
+    if available_temperatures is not None and len(available_temperatures) > 0:
+        temperatures = np.array(sorted(set(available_temperatures)))
+    else:
+        temperatures = np.unique(points[:, 0])
+
+    # Include all stages up to max_stage
+    if max_stage is not None:
+        stages = np.arange(0, max_stage + 1)
+    else:
+        stages = np.unique(points[:, 1])
+
+    # Prepare meshgrid
     temp_mesh, stage_mesh = np.meshgrid(temperatures, stages, indexing='ij')
 
-    # Use Radial Basis Function for interpolation
+    # Flatten the meshgrid for interpolation
+    temps_flat = temp_mesh.ravel()
+    stages_flat = stage_mesh.ravel()
+
+    # Use RBF interpolation
     rbf_interpolator = Rbf(points[:, 0], points[:, 1], values, function='thin_plate', smooth=0.2)
-    
+
     # Interpolate values
-    interpolated_values = rbf_interpolator(temp_mesh, stage_mesh)
-    
+    interpolated_values = rbf_interpolator(temps_flat, stages_flat)
+
     # Set negative interpolated values to zero
     interpolated_values = np.where(interpolated_values < 0, 0, interpolated_values)
-    
-    # Create a DataFrame from the meshgrid and interpolated values
+
+    # Create DataFrame
     df = pd.DataFrame({
-        'Temperature': temp_mesh.ravel(),
-        'Stage': stage_mesh.ravel(),
-        'Development_Time': interpolated_values.ravel()
+        'Temperature': temps_flat,
+        'Stage': stages_flat,
+        'Development_Time': interpolated_values
     })
 
     return df

@@ -1,24 +1,26 @@
+# analysis.py
+
 import numpy as np
-from datetime import timedelta, time
 import pandas as pd
+from datetime import timedelta, datetime, time
 
 # Function to get the interpolated durations for the required stages and temperatures
-def get_interpolated_durations(extended_df, required_stages, available_temperatures):
+def get_interpolated_durations(df, required_stages, available_temperatures):
     """
     Filters the DataFrame for the required stages and temperatures.
     Assumes valid input from the frontend.
     """
     # Filter the DataFrame for the required stages and temperatures
     conditions = (
-        (extended_df['Temp1'].isin(available_temperatures) | extended_df['Temp2'].isin(available_temperatures)) &
-        extended_df['Stage'].isin(required_stages)
+        (df['Temperature'].isin(available_temperatures)) &
+        (df['Stage'].isin(required_stages))
     )
-    durations_df = extended_df[conditions]
+    durations_df = df[conditions]
 
     if durations_df.empty:
         print("No interpolated data available for the specified stages and temperatures.")
         return None
-    
+
     return durations_df
 
 
@@ -28,20 +30,18 @@ def calculate_collection_times(extended_df, required_stages, available_temperatu
     Calculates collection times based on the desired time and available temperatures.
     """
     filtered_collection_df = get_interpolated_durations(extended_df, required_stages, available_temperatures)
-    
+
     if filtered_collection_df is None:
         return None
-    
+
     # Calculate collection times by subtracting durations from the desired time
     filtered_collection_df = filtered_collection_df.copy()
     filtered_collection_df['Collection_Time'] = filtered_collection_df.apply(
         lambda row: desired_time - timedelta(hours=row['Development_Time']), axis=1
     )
-
     if 'Switch_Times' in filtered_collection_df.columns:
-        filtered_collection_df['Switch_Times'] = filtered_collection_df['Switch_Times'].apply(lambda h: timedelta(hours=h))
         filtered_collection_df['Exact_Switch_Time'] = filtered_collection_df.apply(
-            lambda row: row['Collection_Time'] + row['Switch_Times'], axis=1
+            lambda row: row['Collection_Time'] + timedelta(hours=row['Switch_Times']) if pd.notnull(row['Switch_Times']) else np.nan, axis=1
         )
 
     return filtered_collection_df
@@ -56,16 +56,17 @@ def calculate_exact_times(extended_df, required_stages, available_temperatures, 
 
     if filtered_exacttime_df is None:
         return None
-    
+
+    # Calculate exact times by adding durations to the start date/time
     filtered_exacttime_df = filtered_exacttime_df.copy()
     filtered_exacttime_df['Exact_Time'] = filtered_exacttime_df.apply(
         lambda row: start_datetime + timedelta(hours=row['Development_Time']), axis=1
     )
 
+    # Calculate 'Exact_Switch_Time' only where 'Switch_Times' is not NaN
     if 'Switch_Times' in filtered_exacttime_df.columns:
-        filtered_exacttime_df['Switch_Times'] = filtered_exacttime_df['Switch_Times'].apply(lambda h: timedelta(hours=h))
         filtered_exacttime_df['Exact_Switch_Time'] = filtered_exacttime_df.apply(
-            lambda row: start_datetime + row['Switch_Times'], axis=1
+            lambda row: start_datetime + timedelta(hours=row['Switch_Times']) if pd.notnull(row['Switch_Times']) else np.nan, axis=1
         )
 
     return filtered_exacttime_df
@@ -86,43 +87,53 @@ def generate_temp_combinations(temps, max_diff=5):
 
 # Function to calculate development times with switching between temperatures
 def calculate_switch_times(df, temps_combinations, required_stages):
-    """
-    Calculate development times for switching between temperatures at different stages.
-    """
     new_rows = []
+    df['Temperature'] = df['Temperature'].astype(float)
+    df['Stage'] = df['Stage'].astype(int)  # Ensure stages are integers
+
     for (t1, t2) in temps_combinations:
         for stage in required_stages:
             for switch_stage in range(0, stage):
                 # Get development time for switch stage at t1
-                time_at_t1_df = df[(df['Temperature'] == t1) & (df['Stage'] == switch_stage)]
+                time_at_t1_df = df[(np.isclose(df['Temperature'], t1)) & (df['Stage'] == switch_stage)]
                 if time_at_t1_df.empty:
                     continue
                 time_at_t1 = time_at_t1_df['Development_Time'].iloc[0]
 
                 # Get development time for the required stage at t2
-                required_stage_t2_df = df[(df['Temperature'] == t2) & (df['Stage'] == stage)]
+                required_stage_t2_df = df[(np.isclose(df['Temperature'], t2)) & (df['Stage'] == stage)]
                 if required_stage_t2_df.empty:
                     continue
                 required_time_t2 = required_stage_t2_df['Development_Time'].iloc[0]
 
                 # Get development time for the switch stage at t2
-                switch_stage_t2_df = df[(df['Temperature'] == t2) & (df['Stage'] == switch_stage)]
-                switch_time_t2 = switch_stage_t2_df['Development_Time'].iloc[0] if not switch_stage_t2_df.empty else time_at_t1
+                switch_stage_t2_df = df[(np.isclose(df['Temperature'], t2)) & (df['Stage'] == switch_stage)]
+                if switch_stage_t2_df.empty:
+                    continue
+                switch_time_t2 = switch_stage_t2_df['Development_Time'].iloc[0]
 
                 # Calculate time after switching
                 time_at_t2 = required_time_t2 - switch_time_t2
 
                 new_rows.append({
+                    'Switch': True,
                     'Stage': stage,
+                    'Temperature': t1,
                     'Temp1': t1,
                     'Temp2': t2,
                     'Development_Time': time_at_t1 + time_at_t2,
                     'Switch_Stage': switch_stage,
-                    'Switch_Times': time_at_t1, 
-                    'Second_Times': time_at_t2
+                    'Switch_Times': time_at_t1,
                 })
 
-    return pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
+    # Create a DataFrame from the new rows
+    new_df = pd.DataFrame(new_rows)
+
+    # Combine the original DataFrame with the new DataFrame
+    extended_df = pd.concat([df, new_df], ignore_index=True, sort=False)
+
+    return extended_df
+
 
 
 # Function to filter the results based on lab days, lab hours, and collection window
@@ -130,13 +141,20 @@ def filter_results_by_timing(results_df, lab_days, lab_start_time, lab_end_time,
     """
     Filter the results DataFrame based on user availability.
     """
-    datetime_conversion = results_df[results_df.columns[-2]]  # Assuming this column holds date-related info
-    
+    if results_df is None or results_df.empty:
+        return None
+
+    results_df = results_df.copy()
+
+    datetime_column = 'Exact_Time' if 'Exact_Time' in results_df.columns else 'Collection_Time'
+    results_df[datetime_column] = pd.to_datetime(results_df[datetime_column])
+
     # Extract weekday and time from the datetime column
-    results_df['weekday_exact'] = datetime_conversion.dt.weekday
-    results_df['time_exact'] = datetime_conversion.dt.time
+    results_df['weekday_exact'] = results_df[datetime_column].dt.weekday
+    results_df['time_exact'] = results_df[datetime_column].dt.time
 
     if 'Exact_Switch_Time' in results_df.columns:
+        results_df['Exact_Switch_Time'] = pd.to_datetime(results_df['Exact_Switch_Time'])
         results_df['weekday_switch'] = results_df['Exact_Switch_Time'].dt.weekday
         results_df['time_switch'] = results_df['Exact_Switch_Time'].dt.time
 
@@ -145,26 +163,28 @@ def filter_results_by_timing(results_df, lab_days, lab_start_time, lab_end_time,
 
     if lab_days:
         mask &= results_df['weekday_exact'].isin(lab_days)
-        mask &= results_df.get('weekday_switch', results_df['weekday_exact']).isin(lab_days)
+        if 'weekday_switch' in results_df.columns:
+            mask &= results_df['weekday_switch'].isin(lab_days)
 
     if lab_start_time and lab_end_time:
-        mask &= (results_df['time_exact'] >= lab_start_time) & (results_df['time_exact'] <= lab_end_time)
-        mask &= (results_df.get('time_switch', results_df['time_exact']) >= lab_start_time) & (results_df.get('time_switch', results_df['time_exact']) <= lab_end_time)
+        lab_start_time_obj = datetime.strptime(lab_start_time, '%H:%M').time()
+        lab_end_time_obj = datetime.strptime(lab_end_time, '%H:%M').time()
+        mask &= results_df['time_exact'].between(lab_start_time_obj, lab_end_time_obj)
+        if 'time_switch' in results_df.columns:
+            mask &= results_df['time_switch'].between(lab_start_time_obj, lab_end_time_obj)
 
     if collection_start and collection_end:
-        mask &= (results_df['time_exact'] >= collection_start) & (results_df['time_exact'] <= collection_end)
+        collection_start_time = datetime.strptime(collection_start, '%H:%M').time()
+        collection_end_time = datetime.strptime(collection_end, '%H:%M').time()
+        mask &= results_df['time_exact'].between(collection_start_time, collection_end_time)
 
-    if start_datetime and not desired_time:
-        mask &= (results_df.get('Collection_Time') >= start_datetime)
-
-    
     filtered_df = results_df[mask]
 
     if filtered_df.empty:
         print("No available times match the specified criteria.")
         return None
 
-    return filtered_df.sort_values(by=['Stage', 'Temperature'], ascending=[True, False])
+    return filtered_df.sort_values(by=['Stage', 'Development_Time'], ascending=[True, True])
 
 
 # Function to suggest the fastest temperature for each stage based on the minimum development time
@@ -181,27 +201,22 @@ def suggest_fastest_temperature(df, required_stages):
 
     return fastest_temperatures
 
-# Helper function to convert Timedelta to a string format
-def timedelta_to_str(tdelta):
-    if tdelta:
-        return str(tdelta)  # Convert the Timedelta object to string (e.g., '2:00:00')
-    return None
 
 # Convert DataFrame with Timedelta to a serializable format
 def convert_df_to_serializable(df):
     """
     Convert a DataFrame to a JSON-serializable format.
-    Converts timedelta and time fields into string format.
+    Converts datetime and timedelta fields into string format.
     """
     df_copy = df.copy()
 
     # Iterate through each column in the DataFrame
     for col in df_copy.columns:
-        if isinstance(df_copy[col].dtype, pd.api.types.DatetimeTZDtype) or pd.api.types.is_datetime64_any_dtype(df_copy[col]):
-            df_copy[col] = df_copy[col].dt.strftime('%Y-%m-%d %H:%M:%S')  # Convert datetime fields to string
+        if pd.api.types.is_datetime64_any_dtype(df_copy[col]):
+            df_copy[col] = df_copy[col].dt.strftime('%Y-%m-%d %H:%M')
         elif pd.api.types.is_timedelta64_dtype(df_copy[col]):
-            df_copy[col] = df_copy[col].apply(lambda x: str(x))  # Convert timedelta fields to string
+            df_copy[col] = df_copy[col].apply(lambda x: str(x))
         elif df_copy[col].apply(lambda x: isinstance(x, time)).any():
-            df_copy[col] = df_copy[col].apply(lambda x: x.strftime('%H:%M:%S') if isinstance(x, time) else x)  # Convert time fields to string
+            df_copy[col] = df_copy[col].apply(lambda x: x.strftime('%H:%M') if isinstance(x, time) else x)
 
     return df_copy
