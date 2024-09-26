@@ -4,6 +4,7 @@ import DatePicker from 'react-datepicker';
 import { Scatter } from 'react-chartjs-2';
 import 'react-datepicker/dist/react-datepicker.css';
 import './Page.css';
+import CalendarComponent from './CalendarComponent';
 // Import Chart.js components
 import {
   Chart as ChartJS,
@@ -44,6 +45,8 @@ const PredictStages = () => {
   const handleDesiredTimeToggle = () => {
     setDesiredTimeEnabled(!desiredTimeEnabled);
   };
+
+  const [viewMode, setViewMode] = useState('bar'); // 'bar' or 'calendar'
 
   // Fetch species from the server when the component mounts
   useEffect(() => {
@@ -147,17 +150,17 @@ const PredictStages = () => {
       alert('Please add at least one temperature.');
       return;
     }
-
+  
     // Prepare the data payload for the backend
     const payload = {
       required_species: species.trim(),
       required_stages: stages.map((s) => parseInt(s)),
       available_temperatures: temperatures.map((t) => parseFloat(t)),
       start_datetime: startDatetime
-        ? startDatetime.toISOString().slice(0, 16).replace('T', ' ')
+        ? `${startDatetime.getFullYear()}-${('0' + (startDatetime.getMonth() + 1)).slice(-2)}-${('0' + startDatetime.getDate()).slice(-2)} ${('0' + startDatetime.getHours()).slice(-2)}:${('0' + startDatetime.getMinutes()).slice(-2)}`
         : null,
       desired_time: desiredTime
-        ? desiredTime.toISOString().slice(0, 16).replace('T', ' ')
+        ? `${desiredTime.getFullYear()}-${('0' + (desiredTime.getMonth() + 1)).slice(-2)}-${('0' + desiredTime.getDate()).slice(-2)} ${('0' + desiredTime.getHours()).slice(-2)}:${('0' + desiredTime.getMinutes()).slice(-2)}`
         : null,
       collection_start: collectionStart,
       collection_end: collectionEnd,
@@ -165,21 +168,24 @@ const PredictStages = () => {
       lab_start_time: labStart,
       lab_end_time: labEnd,
     };
-
+  
     try {
       const response = await axios.post('http://127.0.0.1:5000/predict', payload);
-
-      // Check if the response has an error
+  
       if (response.status === 200) {
-        setGraphData(response.data.graphData);
-        setScheduleData(response.data.scheduleData);
+        if (response.data.error) {
+          alert(`Error: ${response.data.error}`);
+          setGraphData(null);
+          setScheduleData([]);
+        } else {
+          setGraphData(response.data.graphData);
+          setScheduleData(response.data.scheduleData);
+        }
       } else {
-        // If the server returns an error
-        alert(`Error: ${response.data.error}`);
+        alert(`Error: ${response.data.error || 'Unexpected error occurred.'}`);
       }
     } catch (error) {
-      // If the request fails completely
-      if (error.response && error.response.data) {
+      if (error.response && error.response.data && error.response.data.error) {
         alert(`Error: ${error.response.data.error}`);
       } else {
         alert('An unexpected error occurred.');
@@ -188,18 +194,18 @@ const PredictStages = () => {
   };
 
   // Prepare data for the scatter chart
-  const chartData = graphData
+  const chartData = graphData && graphData.datasets && graphData.datasets.length > 0
   ? {
       datasets: graphData.datasets.map((dataset) => ({
         label: `Temp ${dataset.temperature}°C`,
         data: dataset.data.map((point) => ({
-          x: parseFloat(point.Development_Time), // X-axis is Development Time
-          y: parseFloat(point.Stage), // Y-axis is Stage
+          x: parseFloat(point.Development_Time),
+          y: parseFloat(point.Stage),
         })),
         backgroundColor: dataset.color,
-        borderColor: dataset.color, // Optionally use the same color for the line
+        borderColor: dataset.color,
         fill: false,
-        showLine: true, // To connect the points with lines
+        showLine: true,
       })),
     }
   : null;
@@ -298,7 +304,7 @@ const PredictStages = () => {
             showTimeSelect
             timeFormat="HH:mm"
             timeIntervals={15}
-            dateFormat="Pp"
+            dateFormat="dd/MM/yyyy HH:mm"
             placeholderText="Select start datetime"
             className="input-field round-input"
           />
@@ -322,7 +328,7 @@ const PredictStages = () => {
                 showTimeSelect
                 timeFormat="HH:mm"
                 timeIntervals={15}
-                dateFormat="Pp"
+                dateFormat="dd/MM/yyyy HH:mm"
                 placeholderText="Select desired datetime"
                 className="input-field round-input"
               />
@@ -432,30 +438,68 @@ const PredictStages = () => {
         {scheduleData.length > 0 && (
           <div>
             <h3>Scheduling Information</h3>
-            {scheduleData.map((item, index) => (
-              <div key={index} className="schedule-item">
-                {/* Visualization of incubation periods and switches */}
-                <div className="bar-container">
-                  <div
-                    className="bar"
-                    style={{
-                      width: `${item.durationPercentage}%`,
-                      backgroundColor: item.color,
-                    }}
-                  >
-                    {item.temperature}°C for {item.duration.toFixed(2)} h
+            {/* View Mode Toggle */}
+            <div className="view-toggle">
+              <button onClick={() => setViewMode('bar')} disabled={viewMode === 'bar'}>
+                Bar View
+              </button>
+              <button
+                onClick={() => setViewMode('calendar')}
+                disabled={viewMode === 'calendar'}
+              >
+                Calendar View
+              </button>
+            </div>
+            {viewMode === 'bar' ? (
+              scheduleData.map((item, index) => (
+                <div key={index} className="schedule-item">
+                  {/* Display the stage as title */}
+                  <h4>Stage {item.stage}</h4>
+                  {/* Visualization of incubation periods and switches */}
+                  <div className="bar-container">
+                    {/* First incubation period */}
+                    <div
+                      className="bar"
+                      style={{
+                        width: item.temperature2
+                          ? `${item.switchDurationPercentage}%`
+                          : '100%',
+                        backgroundColor: item.color,
+                        display: 'inline-block',
+                      }}
+                    >
+                      {item.temperature}°C
+                    </div>
+                    {/* Switch time */}
+                    {item.switchTime && (
+                      <span className="switch-time">Switch at {item.switchTime}</span>
+                    )}
+                    {/* Second incubation period */}
+                    {item.temperature2 && (
+                      <div
+                        className="bar"
+                        style={{
+                          width: `${item.afterSwitchDurationPercentage}%`,
+                          backgroundColor: item.color2,
+                          display: 'inline-block',
+                        }}
+                      >
+                        {item.temperature2}°C
+                      </div>
+                    )}
+                  </div>
+                  {/* Start and collection times at the ends of the bar */}
+                  <div className="time-labels">
+                    <span className="start-time">{item.startTime}</span>
+                    <span className="collection-time">{item.collectionTime}</span>
                   </div>
                 </div>
-                <p>
-                  Start: {item.startTime}, Collection: {item.collectionTime}
-                </p>
-                {item.switchTime && (
-                  <p>
-                    Switch at {item.switchTime} to {item.temperature2}°C
-                  </p>
-                )}
+              ))
+            ) : (
+              <div>
+                <CalendarComponent scheduleData={scheduleData} />
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>

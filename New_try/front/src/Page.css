@@ -179,3 +179,29 @@ button {
     gap: 5px;
 }
   
+.bar-container {
+    display: flex;
+    align-items: center;
+    position: relative;
+  }
+  
+  .bar {
+    height: 30px;
+    text-align: center;
+    color: white;
+    line-height: 30px;
+  }
+  
+  .time-labels {
+    display: flex;
+    justify-content: space-between;
+  }
+  
+  .start-time {
+    align-self: flex-start;
+  }
+  
+  .collection-time {
+    align-self: flex-end;
+  }
+  
