@@ -5,6 +5,8 @@ import { Scatter } from 'react-chartjs-2';
 import 'react-datepicker/dist/react-datepicker.css';
 import './Page.css';
 import CalendarComponent from './CalendarComponent';
+import { format } from 'date-fns';
+
 // Import Chart.js components
 import {
   Chart as ChartJS,
@@ -209,7 +211,6 @@ const PredictStages = () => {
       })),
     }
   : null;
-
 
   // Add horizontal gray lines for required stages
   const stageAnnotations = stages.map((stage) => ({
@@ -440,12 +441,17 @@ const PredictStages = () => {
             <h3>Scheduling Information</h3>
             {/* View Mode Toggle */}
             <div className="view-toggle">
-              <button onClick={() => setViewMode('bar')} disabled={viewMode === 'bar'}>
+              <button 
+                onClick={() => setViewMode('bar')} 
+                disabled={viewMode === 'bar'}
+                className={`bar-view-btn ${viewMode === 'bar' ? 'active' : ''}`} 
+              >
                 Bar View
               </button>
               <button
                 onClick={() => setViewMode('calendar')}
                 disabled={viewMode === 'calendar'}
+                className={`calendar-view-btn ${viewMode === 'calendar' ? 'active' : ''}`}
               >
                 Calendar View
               </button>
@@ -455,24 +461,39 @@ const PredictStages = () => {
                 <div key={index} className="schedule-item">
                   {/* Display the stage as title */}
                   <h4>Stage {item.stage}</h4>
-                  {/* Visualization of incubation periods and switches */}
-                  <div className="bar-container">
+                  {/* Bar container */}
+                  <div className="bar-container" style={{ position: 'relative', width: '100%', height: '30px' }}>
                     {/* First incubation period */}
                     <div
                       className="bar"
                       style={{
-                        width: item.temperature2
-                          ? `${item.switchDurationPercentage}%`
-                          : '100%',
+                        width: item.temperature2 ? `${item.switchDurationPercentage}%` : '100%',
                         backgroundColor: item.color,
-                        display: 'inline-block',
+                        height: '100%',
+                        float: 'left',
+                        position: 'relative',
                       }}
+                      title={`Duration: ${item.switchDurationPercentage ? item.switchDurationPercentage.toFixed(2) : '100'}%, Temperature: ${item.temperature}°C`}
                     >
-                      {item.temperature}°C
+                      {/* Show duration */}
+                      <span style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', color: '#fff' }}>
+                        {item.switchDurationPercentage ? (item.duration * item.switchDurationPercentage / 100).toFixed(2) : item.duration.toFixed(2)} h
+                      </span>
                     </div>
-                    {/* Switch time */}
+                    {/* Switch line */}
                     {item.switchTime && (
-                      <span className="switch-time">Switch at {item.switchTime}</span>
+                      <div
+                        className="switch-line"
+                        style={{
+                          position: 'absolute',
+                          left: `${item.switchDurationPercentage}%`,
+                          top: 0,
+                          bottom: 0,
+                          width: '2px',
+                          backgroundColor: 'black',
+                        }}
+                        title={`Switch at ${item.switchTime}`}
+                      ></div>
                     )}
                     {/* Second incubation period */}
                     {item.temperature2 && (
@@ -481,17 +502,23 @@ const PredictStages = () => {
                         style={{
                           width: `${item.afterSwitchDurationPercentage}%`,
                           backgroundColor: item.color2,
-                          display: 'inline-block',
+                          height: '100%',
+                          float: 'left',
+                          position: 'relative',
                         }}
+                        title={`Duration: ${(item.duration * item.afterSwitchDurationPercentage / 100).toFixed(2)} h, Temperature: ${item.temperature2}°C`}
                       >
-                        {item.temperature2}°C
+                        {/* Show duration */}
+                        <span style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', color: '#fff' }}>
+                          {(item.duration * item.afterSwitchDurationPercentage / 100).toFixed(2)} h
+                        </span>
                       </div>
                     )}
                   </div>
-                  {/* Start and collection times at the ends of the bar */}
-                  <div className="time-labels">
-                    <span className="start-time">{item.startTime}</span>
-                    <span className="collection-time">{item.collectionTime}</span>
+                  {/* Start and collection times */}
+                  <div className="time-labels" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span className="start-time">{format(new Date(item.startTime), 'EEE dd.MM HH:mm')}</span>
+                    <span className="collection-time">{format(new Date(item.endTime), 'EEE dd.MM HH:mm')}</span>
                   </div>
                 </div>
               ))
