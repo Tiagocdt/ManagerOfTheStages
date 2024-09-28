@@ -84,4 +84,6 @@ def create_interpolated_dataset(points, values, method='rbf', available_temperat
         'Development_Time': interpolated_values
     })
 
+    df['Switch'] = False
+
     return df

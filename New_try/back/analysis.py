@@ -36,6 +36,10 @@ def calculate_collection_times(extended_df, required_stages, available_temperatu
 
     # Calculate collection times by subtracting durations from the desired time
     filtered_collection_df = filtered_collection_df.copy()
+
+    # 'Collection_Time' is the desired time provided by the user
+    filtered_collection_df['Collection_Time'] = desired_time
+
     filtered_collection_df['Collection_Time'] = filtered_collection_df.apply(
         lambda row: desired_time - timedelta(hours=row['Development_Time']), axis=1
     )
@@ -63,11 +67,16 @@ def calculate_exact_times(extended_df, required_stages, available_temperatures, 
         lambda row: start_datetime + timedelta(hours=row['Development_Time']), axis=1
     )
 
+    # Set 'Start_Time' to the provided start time
+    filtered_exacttime_df['Start_Time'] = start_datetime
+
     # Calculate 'Exact_Switch_Time' only where 'Switch_Times' is not NaN
     if 'Switch_Times' in filtered_exacttime_df.columns:
         filtered_exacttime_df['Exact_Switch_Time'] = filtered_exacttime_df.apply(
             lambda row: start_datetime + timedelta(hours=row['Switch_Times']) if pd.notnull(row['Switch_Times']) else np.nan, axis=1
         )
+
+
 
     return filtered_exacttime_df
 
@@ -136,7 +145,6 @@ def calculate_switch_times(df, temps_combinations, required_stages):
 
 
 
-# Function to filter the results based on lab days, lab hours, and collection window
 def filter_results_by_timing(results_df, lab_days, lab_start_time, lab_end_time, collection_start, collection_end, start_datetime, desired_time):
     """
     Filter the results DataFrame based on user availability.
@@ -153,10 +161,14 @@ def filter_results_by_timing(results_df, lab_days, lab_start_time, lab_end_time,
     results_df['weekday_exact'] = results_df[datetime_column].dt.weekday
     results_df['time_exact'] = results_df[datetime_column].dt.time
 
-    if 'Exact_Switch_Time' in results_df.columns:
+    # Check if 'Exact_Switch_Time' exists and is not all NaN
+    if 'Exact_Switch_Time' in results_df.columns and results_df['Exact_Switch_Time'].notnull().any():
         results_df['Exact_Switch_Time'] = pd.to_datetime(results_df['Exact_Switch_Time'])
         results_df['weekday_switch'] = results_df['Exact_Switch_Time'].dt.weekday
         results_df['time_switch'] = results_df['Exact_Switch_Time'].dt.time
+    else:
+        # If there are no valid switch times, remove these columns to avoid confusion
+        results_df = results_df.drop(columns=['Exact_Switch_Time'], errors='ignore')
 
     # Initialize mask
     mask = pd.Series(True, index=results_df.index)
@@ -164,14 +176,17 @@ def filter_results_by_timing(results_df, lab_days, lab_start_time, lab_end_time,
     if lab_days:
         mask &= results_df['weekday_exact'].isin(lab_days)
         if 'weekday_switch' in results_df.columns:
-            mask &= results_df['weekday_switch'].isin(lab_days)
+            switch_mask = results_df['Exact_Switch_Time'].notnull()
+            # For rows with switch times, apply the filter; else, don't alter the mask
+            mask &= (~switch_mask) | (results_df['weekday_switch'].isin(lab_days))
 
     if lab_start_time and lab_end_time:
         lab_start_time_obj = datetime.strptime(lab_start_time, '%H:%M').time()
         lab_end_time_obj = datetime.strptime(lab_end_time, '%H:%M').time()
         mask &= results_df['time_exact'].between(lab_start_time_obj, lab_end_time_obj)
         if 'time_switch' in results_df.columns:
-            mask &= results_df['time_switch'].between(lab_start_time_obj, lab_end_time_obj)
+            switch_mask = results_df['Exact_Switch_Time'].notnull()
+            mask &= (~switch_mask) | results_df['time_switch'].between(lab_start_time_obj, lab_end_time_obj)
 
     if collection_start and collection_end:
         collection_start_time = datetime.strptime(collection_start, '%H:%M').time()
@@ -190,16 +205,35 @@ def filter_results_by_timing(results_df, lab_days, lab_start_time, lab_end_time,
 # Function to suggest the fastest temperature for each stage based on the minimum development time
 def suggest_fastest_temperature(df, required_stages):
     """
-    Suggest the fastest temperature for each stage based on development time.
+    Suggest the fastest temperature for each stage based on development time,
+    preferring schedules without temperature switches.
     """
     if df.empty:
         print("No data available to analyze.")
         return None
 
-    # Group by 'Stage' and find the entry with the minimum 'Development_Time' for each stage
-    fastest_temperatures = df.loc[df.groupby('Stage')['Development_Time'].idxmin()].reset_index(drop=True)
+    fastest_entries = []  # List to collect fastest entries
+
+    for stage in required_stages:
+        stage_df = df[df['Stage'] == stage]
+        if stage_df.empty:
+            continue
+
+        # Prefer non-switch schedules
+        non_switch_df = stage_df[stage_df['Switch'] == False]
+        if not non_switch_df.empty:
+            fastest = non_switch_df.loc[non_switch_df['Development_Time'].idxmin()]
+        else:
+            fastest = stage_df.loc[stage_df['Development_Time'].idxmin()]
+
+        fastest_entries.append(fastest)
+
+    # Create a DataFrame from the list of fastest entries
+    fastest_temperatures = pd.DataFrame(fastest_entries).reset_index(drop=True)
 
     return fastest_temperatures
+
+
 
 
 # Convert DataFrame with Timedelta to a serializable format
@@ -209,11 +243,12 @@ def convert_df_to_serializable(df):
     Converts datetime and timedelta fields into string format.
     """
     df_copy = df.copy()
+    date_format = '%a %d.%m %H:%M'  # Format: weekday dd.mm HH:mm
 
     # Iterate through each column in the DataFrame
     for col in df_copy.columns:
         if pd.api.types.is_datetime64_any_dtype(df_copy[col]):
-            df_copy[col] = df_copy[col].dt.strftime('%Y-%m-%d %H:%M')
+            df_copy[col] = df_copy[col].dt.strftime('%Y-%m-%d %H:%M:%S')
         elif pd.api.types.is_timedelta64_dtype(df_copy[col]):
             df_copy[col] = df_copy[col].apply(lambda x: str(x))
         elif df_copy[col].apply(lambda x: isinstance(x, time)).any():

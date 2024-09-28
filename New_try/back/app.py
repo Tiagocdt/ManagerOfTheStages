@@ -58,7 +58,7 @@ def predict_stages():
         if len(np.unique(points, axis=0)) < 3:
             return jsonify({"error": "Not enough unique data points for interpolation"}), 400
 
-        max_stage = max(required_stages)
+        max_stage = 40
         interpolated_df = create_interpolated_dataset(
             points,
             values,
@@ -69,8 +69,6 @@ def predict_stages():
 
         temp_combinations = generate_temp_combinations(available_temperatures)
 
-        print (temp_combinations)
-
         extended_df = calculate_switch_times(interpolated_df, temp_combinations, required_stages)
 
         if desired_time:
@@ -80,10 +78,7 @@ def predict_stages():
         else:
             results_df = get_interpolated_durations(interpolated_df, required_stages, available_temperatures)
 
-
-        print (start_datetime)
-        print (results_df)
-        #results_df.to_csv('output.csv', index=False)
+        results_df.to_csv('output01.csv', index=False)
 
         if start_datetime or collection_start or lab_days or lab_start_time:
             filtered_results_df = filter_results_by_timing(
@@ -95,10 +90,10 @@ def predict_stages():
         if filtered_results_df is None or filtered_results_df.empty:
             return jsonify({"error": "No available times match the specified criteria."}), 400
 
-        print (filtered_results_df)
+        filtered_results_df.to_csv('output02.csv', index=False)
 
         fastest_temp_df = suggest_fastest_temperature(filtered_results_df, required_stages)
-        
+    
         serializable_df = convert_df_to_serializable(fastest_temp_df)
         
         # Prepare graph data and schedule data for the frontend
@@ -106,7 +101,12 @@ def predict_stages():
 
         temperature_colors = graph_data.get('temperature_colors', {})
 
-        schedule_data = prepare_schedule_data(serializable_df, temperature_colors)
+        schedule_data = prepare_schedule_data(
+            serializable_df,
+            temperature_colors,
+            start_datetime=start_datetime,
+            desired_time=desired_time
+        )
 
         return jsonify({
             'graphData': graph_data,
@@ -187,10 +187,10 @@ def prepare_graph_data(interpolated_df, available_temperatures):
 
     # Filter the interpolated dataframe by available temperatures
     graph_df = interpolated_df[interpolated_df['Temperature'].isin(available_temperatures)]
-    
+
     # Sort the dataframe by stage and development time to get cleaner plots
     graph_df = graph_df.sort_values(by=['Stage', 'Development_Time'])
-    
+
     # Unique temperatures available
     temperatures = graph_df['Temperature'].unique()
     
@@ -217,11 +217,11 @@ def prepare_graph_data(interpolated_df, available_temperatures):
         }
         
         graph_data['datasets'].append(dataset)
-    
+
     return graph_data
 
 # Helper function to prepare schedule data for Predict Stages page
-def prepare_schedule_data(df, temperature_colors):
+def prepare_schedule_data(df, temperature_colors, start_datetime=None, desired_time=None):
     schedule_data = []
     if df is None or df.empty:
         return schedule_data
@@ -236,10 +236,15 @@ def prepare_schedule_data(df, temperature_colors):
         color1 = temperature_colors.get(temp1)
         color2 = temperature_colors.get(temp2) if temp2 else None
 
+        # Assign 'startTime' and 'collectionTime' based on columns
+        startTime = row.get('Start_Time')
+        collectionTime = row.get('Exact_Time') or row.get('Collection_Time')
+
+
         item = {
             'stage': row['Stage'],
-            'startTime': row.get('Collection_Time', row.get('Exact_Time')),
-            'collectionTime': row.get('Exact_Time', row.get('Collection_Time')),
+            'startTime': startTime,
+            'collectionTime': collectionTime,
             'temperature': temp1,
             'temperature2': temp2,
             'duration': row['Development_Time'],
