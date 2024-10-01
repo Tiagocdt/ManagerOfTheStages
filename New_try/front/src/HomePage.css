@@ -1,0 +1,15 @@
+.home-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(50vh - 100px); /* Adjust based on your header/footer height */
+  }
+  
+  .welcome-gif {
+    width: 300px;
+    height: auto;
+    margin-bottom: 20px;
+    border-radius: 10;
+  }
+  

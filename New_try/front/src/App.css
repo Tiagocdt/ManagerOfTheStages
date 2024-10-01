@@ -14,9 +14,10 @@ body {
   align-items: center;
   text-align: center;
   padding: 1px;
-  background-color: #b9af9c; /* Optional: give it a nice background color */
-  border-radius: 8px;
+  background-color: #c8c5bf; /* Optional: give it a nice background color */
+  border-radius: 4px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  color: #262b31;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -53,26 +54,27 @@ body {
 .nav-container {
   display: flex;
   justify-content: center;
-  gap: 10px;
   margin: 20px 0;
+  gap: 2px;
 }
 
 /* Style for buttons */
 .nav-container a {
   padding: 10px 20px;
   text-decoration: none;
-  background-color: #bb9440;
+  background-color: #c8c5bf;
   color: white;
-  border-radius: 5px;
+  border-radius: 3px;
   font-size: 16px;
+  font-weight: bold;
 }
 
 .nav-container a:hover {
-  background-color: #9a7932;
+  background-color: #b1aea9;
 }
 
 /* Active link style */
 .nav-container a.active-link {
-  background-color: #886518; /* Change the background color when active */
+  background-color: #9c9a97; /* Change the background color when active */
   color: white;
 }

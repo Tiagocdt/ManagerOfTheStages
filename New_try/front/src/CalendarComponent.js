@@ -25,7 +25,7 @@ const CalendarComponent = ({ scheduleData }) => {
       backgroundColor: stageColors[item.stage],
       borderColor: stageColors[item.stage],
       extendedProps: {
-        description: `Start incubation for Stage ${item.stage} at ${item.temperature}°C at ${item.startTime}`,
+        description: `Start incubation for Stage ${item.stage} at ${item.temperature}°C`,
       },
     });
 
@@ -37,7 +37,7 @@ const CalendarComponent = ({ scheduleData }) => {
         backgroundColor: stageColors[item.stage],
         borderColor: stageColors[item.stage],
         extendedProps: {
-          description: `Switch to ${item.temperature2}°C for Stage ${item.stage} at ${item.switchTime}`,
+          description: `Switch to ${item.temperature2}°C for Stage ${item.stage}`,
         },
       });
     }
@@ -49,7 +49,7 @@ const CalendarComponent = ({ scheduleData }) => {
       backgroundColor: stageColors[item.stage],
       borderColor: stageColors[item.stage],
       extendedProps: {
-        description: `Collect Stage ${item.stage} at ${item.endTime}`,
+        description: `Collect Stage ${item.stage}`,
       },
     });
 
@@ -79,6 +79,7 @@ const CalendarComponent = ({ scheduleData }) => {
         events={events}
         eventContent={renderEventContent}
         eventDidMount={handleEventHover}
+        allDaySlot={false} 
         height="400px"
       />
     </div>
@@ -99,7 +100,8 @@ function handleEventHover(info) {
     const content = `${description} at ${eventStart}`;
 
   tippy(info.el, {
-    content: info.event.extendedProps.description,
+    content: content,
+    allowHTML: true,
   });
 }
 

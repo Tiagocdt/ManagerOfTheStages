@@ -1,0 +1,14 @@
+/* Footer.css */
+.app-footer {
+    width: 100%;
+    padding: 10px;
+    font-size: 12px;
+    background-color: transparent;
+    color: #555;
+    text-align: left;
+    position: relative; /* Changed from 'fixed' to 'relative' */
+  }
+  
+  .app-footer p {
+    margin: 0;
+  }
